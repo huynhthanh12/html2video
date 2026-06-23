@@ -24,12 +24,14 @@ async function convertHtmlToVideo({
   duration = 10,
   width = 1280,
   height = 720,
-  onProgress = () => {}
+  onProgress = () => {},
+  onLog = () => {}
 }) {
   const totalFrames = Math.ceil(fps * duration);
   const msPerFrame = 1000 / fps;
 
   // 1. Chuẩn bị HTML file URL
+  onLog('📂 Đang chuẩn bị file HTML...');
   const htmlPath = await prepareHtml(inputFile);
   const fileUrl = `file://${htmlPath}`;
 
@@ -59,12 +61,15 @@ async function convertHtmlToVideo({
     ]
   });
 
+  onLog('✅ Chrome đã khởi động');
   const page = await browser.newPage();
   await page.setViewport({ width, height, deviceScaleFactor: 1 });
 
   // 3. Load trang, chờ animation sẵn sàng
+  onLog('🌍 Đang load trang HTML...');
   await page.goto(fileUrl, { waitUntil: 'networkidle0', timeout: 30_000 });
   await sleep(500); // buffer nhỏ để animation khởi tạo xong
+  onLog('✅ Trang đã load xong, bắt đầu capture frames...');
 
   // 4. Inject fake timer để đồng bộ hóa thời gian
   // (tùy chọn nâng cao — mặc định dùng real-time capture)
@@ -77,6 +82,7 @@ async function convertHtmlToVideo({
   const frameStream = new PassThrough();
 
   // 6. Khởi động FFmpeg trước, đọc từ pipe
+  onLog('🎞️ Khởi động FFmpeg encoder...');
   const ffmpegPromise = new Promise((resolve, reject) => {
     ffmpeg(frameStream)
       .inputFormat('image2pipe')
@@ -115,15 +121,16 @@ async function convertHtmlToVideo({
     // Cập nhật progress mỗi 5%
     const pct = Math.round((i / totalFrames) * 100);
     if (i % Math.max(1, Math.floor(totalFrames / 20)) === 0) {
-      onProgress(pct);
+      onProgress(pct, i);
     }
   }
 
   frameStream.end();
+  onLog('⏳ Đang encode video, chờ FFmpeg hoàn thành...');
   await browser.close();
   await ffmpegPromise;
 
-  onProgress(100);
+  onProgress(100, totalFrames);
 
   // Dọn file tạm
   cleanupExtracted(inputFile);
