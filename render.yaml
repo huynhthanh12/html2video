@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: html2video
+    runtime: docker
+    plan: free          # đổi thành 'starter' ($7/tháng) để bỏ giới hạn RAM
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: LOW_MEMORY
+        value: true     # bật chế độ tiết kiệm RAM cho free tier
+                        # đổi thành false nếu dùng plan trả phí
+    healthCheckPath: /health
+    autoDeploy: true

@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HTML → Video Converter</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f11;
+      --surface: #1a1a1f;
+      --surface2: #242429;
+      --border: #2e2e35;
+      --accent: #7c6af7;
+      --accent-dim: #5b4fd6;
+      --text: #e8e8ec;
+      --muted: #8a8a9a;
+      --success: #34c77b;
+      --error: #e8524a;
+      --radius: 12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 40px;
+      width: 100%;
+      max-width: 560px;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      letter-spacing: -0.4px;
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+
+    /* Drop zone */
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 40px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      margin-bottom: 24px;
+      position: relative;
+    }
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--accent);
+      background: rgba(124, 106, 247, 0.06);
+    }
+    .dropzone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+    }
+    .drop-icon {
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+    .drop-label {
+      font-size: 15px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+    .drop-hint {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .file-chosen {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      margin-bottom: 24px;
+    }
+    .file-chosen.show { display: flex; }
+    .file-chosen .fname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-chosen .remove {
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; font-size: 18px; line-height: 1; padding: 0;
+    }
+
+    /* Params grid */
+    .params {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .params .full { grid-column: 1 / -1; }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    input[type="number"], select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 9px 12px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="number"]:focus, select:focus {
+      border-color: var(--accent);
+    }
+
+    /* Preset chips */
+    .presets {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .preset-chip {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all 0.15s;
+    }
+    .preset-chip:hover, .preset-chip.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(124,106,247,0.08);
+    }
+
+    /* Button */
+    .btn-convert {
+      width: 100%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, opacity 0.2s;
+      letter-spacing: -0.2px;
+    }
+    .btn-convert:hover { background: var(--accent-dim); }
+    .btn-convert:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Progress */
+    .progress-wrap {
+      display: none;
+      margin-top: 24px;
+    }
+    .progress-wrap.show { display: block; }
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .progress-bar-bg {
+      background: var(--surface2);
+      border-radius: 99px;
+      height: 6px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      background: var(--accent);
+      height: 100%;
+      border-radius: 99px;
+      width: 0%;
+      transition: width 0.4s ease;
+    }
+
+    /* Result */
+    .result {
+      display: none;
+      margin-top: 20px;
+      padding: 16px;
+      background: var(--surface2);
+      border-radius: var(--radius);
+      text-align: center;
+    }
+    .result.show { display: block; }
+    .result.success { border: 1px solid rgba(52,199,123,0.3); }
+    .result.error { border: 1px solid rgba(232,82,74,0.3); }
+    .result-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .result.success .result-title { color: var(--success); }
+    .result.error .result-title { color: var(--error); }
+    .result-msg { font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+    .btn-download {
+      display: inline-block;
+      background: var(--success);
+      color: #fff;
+      text-decoration: none;
+      border-radius: 8px;
+      padding: 10px 24px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>HTML → Video</h1>
+  <p class="subtitle">Upload file HTML hoặc ZIP chứa animation — nhận MP4</p>
+
+  <!-- Drop zone -->
+  <div class="dropzone" id="dropzone">
+    <input type="file" id="fileInput" accept=".html,.zip">
+    <div class="drop-icon">📁</div>
+    <div class="drop-label">Kéo thả hoặc click để chọn file</div>
+    <div class="drop-hint">.html hoặc .zip — tối đa 50MB</div>
+  </div>
+
+  <!-- File info -->
+  <div class="file-chosen" id="fileChosen">
+    <span>📄</span>
+    <span class="fname" id="fileName"></span>
+    <button class="remove" id="removeFile">×</button>
+  </div>
+
+  <!-- Resolution presets -->
+  <div class="presets">
+    <span style="font-size:12px;color:var(--muted);align-self:center;">Preset:</span>
+    <button class="preset-chip" data-w="1920" data-h="1080">1080p</button>
+    <button class="preset-chip active" data-w="1280" data-h="720">720p</button>
+    <button class="preset-chip" data-w="854" data-h="480">480p</button>
+    <button class="preset-chip" data-w="1080" data-h="1920">9:16 (Reels)</button>
+    <button class="preset-chip" data-w="1080" data-h="1080">1:1 (Square)</button>
+  </div>
+
+  <!-- Params -->
+  <div class="params">
+    <div>
+      <label>Thời lượng (giây)</label>
+      <input type="number" id="duration" value="10" min="1" max="120">
+    </div>
+    <div>
+      <label>FPS</label>
+      <select id="fps">
+        <option value="24">24 fps</option>
+        <option value="30" selected>30 fps</option>
+        <option value="60">60 fps</option>
+      </select>
+    </div>
+    <div>
+      <label>Chiều rộng (px)</label>
+      <input type="number" id="width" value="1280" min="100" max="3840">
+    </div>
+    <div>
+      <label>Chiều cao (px)</label>
+      <input type="number" id="height" value="720" min="100" max="3840">
+    </div>
+  </div>
+
+  <button class="btn-convert" id="btnConvert" disabled>Chuyển đổi</button>
+
+  <!-- Progress -->
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-label">
+      <span id="progressStatus">Đang xử lý...</span>
+      <span id="progressPct">0%</span>
+    </div>
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div class="result" id="resultBox">
+    <div class="result-title" id="resultTitle"></div>
+    <div class="result-msg" id="resultMsg"></div>
+    <a class="btn-download" id="downloadLink" href="#" download style="display:none">⬇ Tải video</a>
+  </div>
+</div>
+
+<script>
+  let selectedFile = null;
+  let pollInterval = null;
+
+  // --- File selection ---
+  const fileInput = document.getElementById('fileInput');
+  const dropzone = document.getElementById('dropzone');
+  const fileChosen = document.getElementById('fileChosen');
+  const fileName = document.getElementById('fileName');
+  const btnConvert = document.getElementById('btnConvert');
+
+  fileInput.addEventListener('change', () => setFile(fileInput.files[0]));
+
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    setFile(e.dataTransfer.files[0]);
+  });
+
+  document.getElementById('removeFile').addEventListener('click', () => {
+    selectedFile = null;
+    fileInput.value = '';
+    fileChosen.classList.remove('show');
+    dropzone.style.display = '';
+    btnConvert.disabled = true;
+  });
+
+  function setFile(file) {
+    if (!file) return;
+    selectedFile = file;
+    fileName.textContent = file.name;
+    fileChosen.classList.add('show');
+    dropzone.style.display = 'none';
+    btnConvert.disabled = false;
+  }
+
+  // --- Presets ---
+  // Cảnh báo resolution trên free tier
+  const FREE_TIER_WARNING = document.createElement('div');
+  FREE_TIER_WARNING.id = 'res-warning';
+  FREE_TIER_WARNING.style.cssText = 'display:none;background:rgba(239,159,39,0.12);border:1px solid rgba(239,159,39,0.3);border-radius:8px;padding:10px 14px;font-size:13px;color:#EF9F27;margin-bottom:16px;';
+  FREE_TIER_WARNING.innerHTML = '⚠️ Render free tier giới hạn tối đa <b>1280×720</b>. Chọn preset 720p hoặc thấp hơn.';
+  document.querySelector('.btn-convert').before(FREE_TIER_WARNING);
+
+  function checkResWarning() {
+    const w = parseInt(document.getElementById('width').value);
+    const h = parseInt(document.getElementById('height').value);
+    const warn = document.getElementById('res-warning');
+    warn.style.display = (w > 1280 || h > 720) ? 'block' : 'none';
+  }
+  document.getElementById('width').addEventListener('input', checkResWarning);
+  document.getElementById('height').addEventListener('input', checkResWarning);
+
+  document.querySelectorAll('.preset-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      document.getElementById('width').value = chip.dataset.w;
+      checkResWarning();
+      document.getElementById('height').value = chip.dataset.h;
+    });
+  });
+
+  // --- Convert ---
+  btnConvert.addEventListener('click', async () => {
+    if (!selectedFile) return;
+    resetResult();
+
+    const fd = new FormData();
+    fd.append('file', selectedFile);
+    fd.append('duration', document.getElementById('duration').value);
+    fd.append('fps', document.getElementById('fps').value);
+    fd.append('width', document.getElementById('width').value);
+    fd.append('height', document.getElementById('height').value);
+
+    btnConvert.disabled = true;
+    showProgress('Đang gửi file...', 0);
+
+    try {
+      const res = await fetch('/convert', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Lỗi server');
+      pollJob(data.jobId);
+    } catch (err) {
+      showError(err.message);
+      btnConvert.disabled = false;
+    }
+  });
+
+  function pollJob(jobId) {
+    pollInterval = setInterval(async () => {
+      try {
+        const res = await fetch(`/status/${jobId}`);
+        const job = await res.json();
+
+        if (job.status === 'processing') {
+          showProgress('Đang render video...', job.progress);
+        } else if (job.status === 'done') {
+          clearInterval(pollInterval);
+          showProgress('Hoàn thành!', 100);
+          showSuccess(job.downloadUrl);
+          btnConvert.disabled = false;
+        } else if (job.status === 'error') {
+          clearInterval(pollInterval);
+          showError(job.error);
+          btnConvert.disabled = false;
+        }
+      } catch {
+        clearInterval(pollInterval);
+        showError('Mất kết nối đến server');
+        btnConvert.disabled = false;
+      }
+    }, 1500);
+  }
+
+  // --- UI helpers ---
+  function showProgress(label, pct) {
+    const wrap = document.getElementById('progressWrap');
+    wrap.classList.add('show');
+    document.getElementById('progressStatus').textContent = label;
+    document.getElementById('progressPct').textContent = pct + '%';
+    document.getElementById('progressFill').style.width = pct + '%';
+  }
+
+  function showSuccess(url) {
+    const box = document.getElementById('resultBox');
+    box.className = 'result show success';
+    document.getElementById('resultTitle').textContent = '✅ Video đã sẵn sàng';
+    document.getElementById('resultMsg').textContent = 'File MP4 đã được tạo thành công.';
+    const link = document.getElementById('downloadLink');
+    link.href = url;
+    link.style.display = 'inline-block';
+  }
+
+  function showError(msg) {
+    document.getElementById('progressWrap').classList.remove('show');
+    const box = document.getElementById('resultBox');
+    box.className = 'result show error';
+    document.getElementById('resultTitle').textContent = '❌ Lỗi';
+    document.getElementById('resultMsg').textContent = msg;
+    document.getElementById('downloadLink').style.display = 'none';
+  }
+
+  function resetResult() {
+    clearInterval(pollInterval);
+    document.getElementById('progressWrap').classList.remove('show');
+    document.getElementById('resultBox').className = 'result';
+  }
+</script>
+</body>
+</html>
